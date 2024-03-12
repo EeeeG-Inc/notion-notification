@@ -168,7 +168,6 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-        App\Providers\SlackServiceProvider::class,
     ])->toArray(),
 
     /*
@@ -184,9 +183,8 @@ return [
 
     'aliases' => Facade::defaultAliases()->merge([
         // 'Example' => App\Facades\Example::class,
-        'Slack' => App\Services\Slack\SlackFacade::class,
     ])->toArray(),
 
-    'slack_webhook' => env('SLACK_WEBHOOK'),
+    'slack_test_webhook' => env('SLACK_TEST_WEBHOOK'),
 
 ];

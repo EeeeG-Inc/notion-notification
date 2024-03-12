@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Slack;
+use \GuzzleHttp\Client;
 
 class InactiveKtpPersonSlackNotificationCommand extends Command
 {
@@ -26,8 +26,16 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
      */
     public function handle()
     {
-        //
-        Slack::send('送信したいメッセージ');
+        $guzzle = new Client();
+        $guzzle->request(
+            'POST',
+            config('app.slack_test_webhook'),
+            [
+                'json' => [
+                    "text" => "Guzzle\Client使ってPOSTしています"
+                ]
+            ]
+        );
 
     }
 }
