@@ -10,7 +10,8 @@ use Notion\Databases\Query\CompoundFilter;
 use Notion\Databases\Query\DateFilter;
 use Notion\Databases\Query\Sort;
 use Notion\Databases\Query\TextFilter;
-use App\Models\TableLess\NotionPage;
+use Notion\Databases\Query\CheckboxFilter;
+use App\Models\TableLess\NotionKptPage;
 use Illuminate\Support\Collection;
 
 class InactiveKtpPersonSlackNotificationCommand extends Command
@@ -39,20 +40,31 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
         $databaseId = config('notion.notion_kpt_database_id');
         $database = $notion->databases()->find($databaseId);
-
-        $query = Query::create();
-        // ->changeFilter(
-        //     CompoundFilter::and(
-        //         DateFilter::createdTime()->pastWeek(),
-        //         TextFilter::property("Name")->contains("John"),
-        //     )
-        // )
+        //todo:Notioから全ユーザー情報を取得して、それを元に全ユーザーがKPTを使ってるか判定する。
+        //vendor/mariosimao/notion-sdk-php/src/Users/Client.phpのfindAllを使う。
+        $query = Query::create()
+        ->changeFilter(
+            CompoundFilter::and(
+                CheckboxFilter::property('_非表示')->equals(false),
+                CheckboxFilter::property('_非表示K')->equals(false),
+                CheckboxFilter::property('_非表示P')->equals(false),
+                CheckboxFilter::property('_非表示T')->equals(false),
+                CheckboxFilter::property('_全非表示')->equals(false),
+            )
+        );
         // ->addSort(Sort::property("Name")->ascending())
         // ->changePageSize(20);
 
         $queryResult = $notion->databases()->query($database, $query);
-        $result = $this->getPage($queryResult);
-        dd($result);
+
+        $notionKptPages = $this->getNotionKptPages($queryResult);
+        foreach($notionKptPages as $notionKptPage) {
+            $pageComments = $notion->comments()->list($notionKptPage->id);
+            if(!empty($pageComments)) {
+                $notionKptPage->setComments($pageComments);
+            }
+        }
+        dd($notionKptPages);
 
         // $guzzle = new Client();
         // $guzzle->request(
@@ -67,14 +79,26 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
     }
 
-    private function getPage($queryResult):Collection
+    private function getNotionKptPages($queryResult):Collection
     {
         $hasMore = true;
         $result = collect();
         while($hasMore) {
             $pages = $queryResult->pages;
             foreach($pages as $page) {
-                $result->push(new NotionPage($page->id));
+                $kpt = "";
+                foreach($page->properties['KPT']->title as $richText) {
+                    $kpt .= $richText->plainText;
+                }
+                $result->push(new NotionKptPage(
+                    $page->id,
+                    $kpt,
+                    $page->lastEditedTime,
+                    $page->properties['Category']->option->id,
+                    $page->properties['Category']->option->name,
+                    empty($page->properties['Person']->users) ? "UNDEFINED_USER_ID" : $page->properties['Person']->users[0]->id,
+                    empty($page->properties['Person']->users) ? "未設定のPerson" : $page->properties['Person']->users[0]->name,
+                ));
             }
             $hasMore = $queryResult->hasMore;
             if($hasMore) {
