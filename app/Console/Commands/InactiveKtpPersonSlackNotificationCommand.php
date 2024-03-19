@@ -2,32 +2,31 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use App\Models\TableLess\NotionKptPage;
 use GuzzleHttp\Client;
-use Notion\Notion;
+use Illuminate\Console\Command;
+use Notion\Databases\Database;
 use Notion\Databases\Query;
 use Notion\Databases\Query\CompoundFilter;
-use Notion\Databases\Query\DateFilter;
-use Notion\Databases\Query\Sort;
-use Notion\Databases\Query\TextFilter;
 use Notion\Databases\Query\CheckboxFilter;
 use Notion\Databases\Query\PeopleFilter;
-use App\Models\TableLess\NotionKptPage;
-use Exception;
+use Notion\Databases\Query\Result;
+use Notion\Notion;
+use Notion\Users\User;
 use Illuminate\Support\Collection;
 
 class InactiveKtpPersonSlackNotificationCommand extends Command
 {
-    private string $token;
     private string $databaseId;
     private string $slackTestWebhook;
+    private Notion $notion;
 
     public function __construct()
     {
         parent::__construct();
-        $this->token = config('notion.notion_insider_integration_secret');
         $this->databaseId = config('notion.notion_kpt_database_id');
         $this->slackTestWebhook = config('app.slack_test_webhook');
+        $this->notion = Notion::create(config('notion.notion_insider_integration_secret'));
     }
     /**
      * The name and signature of the console command.
@@ -51,58 +50,55 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         try {
             $this->info('start:InactiveKtpPersonSlackNotificationCommand');
 
-            $notion = Notion::create($this->token);
             $this->info('getting users');
-            $users = $notion->users()->findAll();
+            $notionUsers = $this->getNotionUsers();
+
             $this->info('getting kpt database');
-            $database = $notion->databases()->find($this->databaseId);
+            $kptDatabase = $this->getNotionKptDatabase();
 
-            foreach($users as $user) {
+            foreach($notionUsers as $notionUser) {
                 sleep(1);
-                $this->info('getting' . $user->name . " 's kpt");
-                $query = Query::create()->changeFilter(
-                    CompoundFilter::and(
-                        PeopleFilter::property('Person')->contains($user->id),
-                        CheckboxFilter::property('_非表示')->equals(false),
-                        CheckboxFilter::property('_非表示K')->equals(false),
-                        CheckboxFilter::property('_非表示P')->equals(false),
-                        CheckboxFilter::property('_非表示T')->equals(false),
-                        CheckboxFilter::property('_全非表示')->equals(false),
-                    )
-                );
 
-                $queryResult = $notion->databases()->query($database, $query);
+                $this->info('getting' . $notionUser->name . " 's kpt");
+                $notionKptPages = $this->getNotionKptPagesByNotionUser($notionUser, $kptDatabase);
 
-                $notionKptPages = $this->getNotionKptPages($queryResult);
-                foreach($notionKptPages as $notionKptPage) {
-                    $pageComments = $notion->comments()->list($notionKptPage->id);
-                    if(!empty($pageComments)) {
-                        $notionKptPage->setComments($pageComments);
-                    }
+                $this->info('slack notification : user.name ' . $notionUser->name);
+                $texts = $this->getSlackTexts($notionKptPages);
+
+                foreach($texts as $text) {
+                    $this->postSlack($text);
                 }
-                dd($notionKptPages);
-                $this->info('slack notification : user.name ' . $user->name);
-                $text = "";
-                $this->postSlack($text);
+
             }
+
         } catch(\Exception $e) {
             $this->error($e->getMessage());
         }
         $this->info('end:InactiveKtpPersonSlackNotificationCommand');
     }
 
-    private function getNotionKptPages($queryResult):Collection
+    /**
+     * NotionKptPageモデルのコレクションを返却する。
+     *
+     * @param Result $rawResult
+     * @return Collection
+     */
+    private function getNotionKptPageCollection(Result $rawResult):Collection
     {
         $hasMore = true;
-        $result = collect();
+        $collection = collect();
+
         while($hasMore) {
-            $pages = $queryResult->pages;
+            $pages = $rawResult->pages;
+
             foreach($pages as $page) {
                 $kpt = "";
+
                 foreach($page->properties['KPT']->title as $richText) {
                     $kpt .= $richText->plainText;
                 }
-                $result->push(new NotionKptPage(
+
+                $collection->push(new NotionKptPage(
                     $page->id,
                     $kpt,
                     $page->lastEditedTime,
@@ -112,14 +108,23 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
                     empty($page->properties['Person']->users) ? "未設定のPerson" : $page->properties['Person']->users[0]->name,
                 ));
             }
-            $hasMore = $queryResult->hasMore;
+
+            $hasMore = $rawResult->hasMore;
+
             if($hasMore) {
-                $queryResult->nextCursor;
+                $rawResult->nextCursor;
             }
         }
-        return $result;
+
+        return $collection;
     }
 
+    /**
+     * slackに投稿する
+     *
+     * @param string $text
+     * @return void
+     */
     private function postSlack(string $text):void
     {
 
@@ -133,5 +138,82 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
                 ]
             ]
         );
+    }
+
+    /**
+     * Notionの全てのユーザーを取得し返却する
+     *
+     * @return array
+     */
+    private function getNotionUsers():array
+    {
+        return $this->notion->users()->findAll();
+    }
+
+    /**
+     * NotionのKPTデータベースを取得し返却する
+     *
+     * @return Database
+     */
+    private function getNotionKptDatabase():Database
+    {
+        return $this->notion->databases()->find($this->databaseId);
+    }
+
+    /**
+     * Notionユーザー単位でKPTデータベースのページコレクションとして加工して返却する
+     *
+     * @param User $notionUser
+     * @param Database $kptDatabase
+     * @return Collection
+     */
+    private function getNotionKptPagesByNotionUser(User $notionUser, Database $kptDatabase):Collection
+    {
+        $rawResult = $this->getRawNotionKptPages($notionUser->id, $kptDatabase);
+        $collection = $this->getNotionKptPageCollection($rawResult);
+
+        foreach($collection as $notionKptPage) {
+            $pageComments = $this->notion->comments()->list($notionKptPage->id);
+            if(!empty($pageComments)) {
+                $notionKptPage->setComments($pageComments);
+            }
+        }
+
+        return $collection;
+    }
+
+    /**
+     * APIから生のNotionユーザー単位でKPTデータベースのページオブジェクト結果を返却する
+     *
+     * @param string $personId
+     * @param Database $kptDatabase
+     * @return Result
+     */
+    private function getRawNotionKptPages(string $personId, Database $kptDatabase):Result
+    {
+        $query = Query::create()->changeFilter(
+            CompoundFilter::and(
+                PeopleFilter::property('Person')->contains($personId),
+                CheckboxFilter::property('_非表示')->equals(false),
+                CheckboxFilter::property('_非表示K')->equals(false),
+                CheckboxFilter::property('_非表示P')->equals(false),
+                CheckboxFilter::property('_非表示T')->equals(false),
+                CheckboxFilter::property('_全非表示')->equals(false),
+            )
+        );
+
+        return $this->notion->databases()->query($kptDatabase, $query);
+    }
+
+    /**
+     * Slackに通知するメッセージ配列を返却
+     *
+     * @param Collection $notionKptPages
+     * @return array
+     */
+    private function getSlackTexts(Collection $notionKptPages):array
+    {
+        //TODO:この中でアラートメッセージを生成して設定する。
+        return [];
     }
 }
