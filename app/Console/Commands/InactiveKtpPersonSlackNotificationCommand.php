@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\TableLess\NotionKptPage;
+use Carbon\CarbonImmutable;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Notion\Databases\Database;
@@ -20,6 +21,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private string $databaseId;
     private string $slackTestWebhook;
     private Notion $notion;
+    private array $ignoreNotionUsers;
 
     public function __construct()
     {
@@ -27,6 +29,9 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         $this->databaseId = config('notion.notion_kpt_database_id');
         $this->slackTestWebhook = config('app.slack_test_webhook');
         $this->notion = Notion::create(config('notion.notion_insider_integration_secret'));
+        $this->ignoreNotionUsers = [
+            'laravel-app',//NotionのKPTデータベースに紐づく内部インテグレーションシークレットアプリ名
+        ];
     }
     /**
      * The name and signature of the console command.
@@ -57,13 +62,16 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $kptDatabase = $this->getNotionKptDatabase();
 
             foreach($notionUsers as $notionUser) {
+                if(in_array($notionUser->name, $this->ignoreNotionUsers)) {
+                    continue;
+                }
                 sleep(1);
 
-                $this->info('getting' . $notionUser->name . " 's kpt");
+                $this->info('getting ' . $notionUser->name . "'s kpt");
                 $notionKptPages = $this->getNotionKptPagesByNotionUser($notionUser, $kptDatabase);
 
                 $this->info('slack notification : user.name ' . $notionUser->name);
-                $texts = $this->getSlackTexts($notionKptPages);
+                $texts = $this->getSlackTexts($notionKptPages, $notionUser->name);
 
                 foreach($texts as $text) {
                     $this->postSlack($text);
@@ -211,9 +219,40 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
      * @param Collection $notionKptPages
      * @return array
      */
-    private function getSlackTexts(Collection $notionKptPages):array
+    private function getSlackTexts(Collection $notionKptPages, string $notionUserName):array
     {
-        //TODO:この中でアラートメッセージを生成して設定する。
-        return [];
+        $texts = [];
+        $texts = $this->setTextIfEmpty($texts, $notionKptPages, $notionUserName);
+        $now = CarbonImmutable::now('Asia/Tokyo');
+        $twoWeeksAgo = $now->subWeeks(2);
+        foreach($notionKptPages as $notionKptPage) {
+            $lastEditedTime = new CarbonImmutable($notionKptPage->lastEditedTime, 'Asia/Tokyo');
+            if($lastEditedTime->lt($twoWeeksAgo)) {
+                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は二週間以上編集されていないようです。 \n"
+                ."振り返りをしましょう。"
+                ;
+                //TODO:コメントの中身も見て判別したほうがいい。２週間以上かつ本人のコメントがない場合は振り返りしていないとみなして良いと思う。
+            }
+        }
+
+        return $texts;
+    }
+
+    /**
+     * KPTページが一件も存在していない場合にアラートメッセージを設定する。
+     *
+     * @param array $texts
+     * @param Collection $notionKptPages
+     * @param string $notionUserName
+     * @return array
+     */
+    private function setTextIfEmpty(array $texts, Collection $notionKptPages, string $notionUserName):array
+    {
+        if($notionKptPages->isEmpty()) {
+            $texts[] = $notionUserName."のアクティブなKPTページが存在していないようです。\n"
+                        ."problemやtryの登録をしましょう。"
+            ;
+        }
+        return $texts;
     }
 }
