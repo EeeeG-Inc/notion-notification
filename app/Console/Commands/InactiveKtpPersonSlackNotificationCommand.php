@@ -22,16 +22,26 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private string $slackTestWebhook;
     private Notion $notion;
     private array $ignoreNotionUsers;
+    private int $deadlineDays;
+    private string $tz;
 
     public function __construct()
     {
         parent::__construct();
+
+        if((config('app.env') === 'production') || (config('app.env') ===  'prod')) {
+            $this->slackTestWebhook = config('slack.slack_kpt_notification_webhook');
+        } else {
+            $this->slackTestWebhook = config('slack.slack_test_webhook');
+        }
+
         $this->databaseId = config('notion.notion_kpt_database_id');
-        $this->slackTestWebhook = config('app.slack_test_webhook');
         $this->notion = Notion::create(config('notion.notion_insider_integration_secret'));
         $this->ignoreNotionUsers = [
             'laravel-app',//NotionのKPTデータベースに紐づく内部インテグレーションシークレットアプリ名
         ];
+        $this->deadlineDays = 14;
+        $this->tz = 'Asia/Tokyo';
     }
     /**
      * The name and signature of the console command.
@@ -217,23 +227,14 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
      * Slackに通知するメッセージ配列を返却
      *
      * @param Collection $notionKptPages
+     * @param string $notionUserName
      * @return array
      */
     private function getSlackTexts(Collection $notionKptPages, string $notionUserName):array
     {
         $texts = [];
         $texts = $this->setTextIfEmpty($texts, $notionKptPages, $notionUserName);
-        $now = CarbonImmutable::now('Asia/Tokyo');
-        $twoWeeksAgo = $now->subWeeks(2);
-        foreach($notionKptPages as $notionKptPage) {
-            $lastEditedTime = new CarbonImmutable($notionKptPage->lastEditedTime, 'Asia/Tokyo');
-            if($lastEditedTime->lt($twoWeeksAgo)) {
-                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は二週間以上編集されていないようです。 \n"
-                ."振り返りをしましょう。"
-                ;
-                //TODO:コメントの中身も見て判別したほうがいい。２週間以上かつ本人のコメントがない場合は振り返りしていないとみなして良いと思う。
-            }
-        }
+        $texts = $this->setTextNoEditAndNoComment($texts, $notionKptPages, $notionUserName);
 
         return $texts;
     }
@@ -252,6 +253,57 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $texts[] = $notionUserName."のアクティブなKPTページが存在していないようです。\n"
                         ."problemやtryの登録をしましょう。"
             ;
+        }
+        return $texts;
+    }
+
+    /**
+     * 特定日時より新しいコメントがない場合trueを返す
+     *
+     * @param array $comments
+     * @param string $personId
+     * @param CarbonImmutable $deadlineDay
+     * @return boolean
+     */
+    private function isNothingComment(array $comments, string $personId, CarbonImmutable $deadlineDay):bool
+    {
+        $result = true;
+        foreach($comments as $comment) {
+            if($comment->userId !== $personId) {
+                continue;
+            }
+
+            $createdTime = new CarbonImmutable($comment->createdTime, $this->tz);
+            if($createdTime->gt($deadlineDay)) {
+                $result = false;
+                break;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * 一定期間kptページの編集がなく、かつ振り返りコメントもされてない場合アラートメッセージを設定する。
+     *
+     * @param array $texts
+     * @param Collection $notionKptPages
+     * @param string $notionUserName
+     * @return array
+     */
+    private function setTextNoEditAndNoComment(array $texts, Collection $notionKptPages, string $notionUserName):array
+    {
+        $now = CarbonImmutable::now($this->tz);
+        $deadlineDay = $now->subDays($this->deadlineDays);
+
+        foreach($notionKptPages as $notionKptPage) {
+            $lastEditedTime = new CarbonImmutable($notionKptPage->lastEditedTime, $this->tz);
+            $isNothingComment = $this->isNothingComment($notionKptPage->comments, $notionKptPage->personId, $deadlineDay);
+
+            if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
+                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は".$this->deadlineDays."日以上編集されていない、もしくは自分自身で振り返りのNotionコメントも残していないようです。 \n"
+                ."振り返りをしましょう。"
+                ;
+            }
         }
         return $texts;
     }
