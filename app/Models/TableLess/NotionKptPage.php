@@ -14,6 +14,7 @@ class NotionKptPage extends Model
     public string $categoryName;
     public string $personId;
     public string $personName;
+    public string $notionUrl;
 
     public function __construct(
         string $id,
@@ -22,7 +23,8 @@ class NotionKptPage extends Model
         string $categoryId,
         string $categoryName,
         string $personId,
-        string $personName
+        string $personName,
+        string $notionUrl
     ) {
         $this->id = $id;
         $this->kpt = $kpt;
@@ -32,6 +34,7 @@ class NotionKptPage extends Model
         $this->personId = $personId;
         $this->personName = $personName;
         $this->comments = [];
+        $this->notionUrl= $notionUrl;
     }
 
     public function setComments(array $comments)

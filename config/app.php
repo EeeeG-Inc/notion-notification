@@ -185,6 +185,4 @@ return [
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),
 
-    'slack_test_webhook' => env('SLACK_TEST_WEBHOOK'),
-
 ];

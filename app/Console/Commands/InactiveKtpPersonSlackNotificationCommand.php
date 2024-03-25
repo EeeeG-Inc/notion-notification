@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\TableLess\NotionKptPage;
 use Carbon\CarbonImmutable;
 use GuzzleHttp\Client;
-use Illuminate\Console\Command;
 use Notion\Databases\Database;
 use Notion\Databases\Query;
 use Notion\Databases\Query\CompoundFilter;
@@ -14,25 +13,27 @@ use Notion\Databases\Query\PeopleFilter;
 use Notion\Databases\Query\Result;
 use Notion\Notion;
 use Notion\Users\User;
+use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 class InactiveKtpPersonSlackNotificationCommand extends Command
 {
     private string $databaseId;
-    private string $slackTestWebhook;
+    private string $slackKptNotificationWebhook;
     private Notion $notion;
     private array $ignoreNotionUsers;
     private int $deadlineDays;
     private string $tz;
+    private Client $guzzle;
 
     public function __construct()
     {
         parent::__construct();
 
         if((config('app.env') === 'production') || (config('app.env') ===  'prod')) {
-            $this->slackTestWebhook = config('slack.slack_kpt_notification_webhook');
+            $this->slackKptNotificationWebhook = config('slack.slack_kpt_notification_webhook');
         } else {
-            $this->slackTestWebhook = config('slack.slack_test_webhook');
+            $this->slackKptNotificationWebhook = config('slack.slack_test_webhook');
         }
 
         $this->databaseId = config('notion.notion_kpt_database_id');
@@ -42,6 +43,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         ];
         $this->deadlineDays = 14;
         $this->tz = 'Asia/Tokyo';
+        $this->guzzle = new Client();
     }
     /**
      * The name and signature of the console command.
@@ -72,9 +74,11 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $kptDatabase = $this->getNotionKptDatabase();
 
             foreach($notionUsers as $notionUser) {
+
                 if(in_array($notionUser->name, $this->ignoreNotionUsers)) {
                     continue;
                 }
+
                 sleep(1);
 
                 $this->info('getting ' . $notionUser->name . "'s kpt");
@@ -124,6 +128,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
                     $page->properties['Category']->option->name,
                     empty($page->properties['Person']->users) ? "UNDEFINED_USER_ID" : $page->properties['Person']->users[0]->id,
                     empty($page->properties['Person']->users) ? "未設定のPerson" : $page->properties['Person']->users[0]->name,
+                    $page->url,
                 ));
             }
 
@@ -146,10 +151,10 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function postSlack(string $text):void
     {
 
-        $guzzle = new Client();
+        $guzzle = $this->guzzle;
         $guzzle->request(
             'POST',
-            $this->slackTestWebhook,
+            $this->slackKptNotificationWebhook,
             [
                 'json' => [
                     "text" => $text
@@ -192,6 +197,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
         foreach($collection as $notionKptPage) {
             $pageComments = $this->notion->comments()->list($notionKptPage->id);
+
             if(!empty($pageComments)) {
                 $notionKptPage->setComments($pageComments);
             }
@@ -250,8 +256,8 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function setTextIfEmpty(array $texts, Collection $notionKptPages, string $notionUserName):array
     {
         if($notionKptPages->isEmpty()) {
-            $texts[] = $notionUserName."のアクティブなKPTページが存在していないようです。\n"
-                        ."problemやtryの登録をしましょう。"
+            $texts[] = $notionUserName."が作成したKPTページが存在していないようです。\n"
+             . "problemやtryの登録をしましょう。"
             ;
         }
         return $texts;
@@ -268,12 +274,15 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function isNothingComment(array $comments, string $personId, CarbonImmutable $deadlineDay):bool
     {
         $result = true;
+
         foreach($comments as $comment) {
+
             if($comment->userId !== $personId) {
                 continue;
             }
 
             $createdTime = new CarbonImmutable($comment->createdTime, $this->tz);
+
             if($createdTime->gt($deadlineDay)) {
                 $result = false;
                 break;
@@ -296,12 +305,14 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         $deadlineDay = $now->subDays($this->deadlineDays);
 
         foreach($notionKptPages as $notionKptPage) {
+
             $lastEditedTime = new CarbonImmutable($notionKptPage->lastEditedTime, $this->tz);
             $isNothingComment = $this->isNothingComment($notionKptPage->comments, $notionKptPage->personId, $deadlineDay);
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
-                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は".$this->deadlineDays."日以上編集されていない、もしくは自分自身で振り返りのNotionコメントも残していないようです。 \n"
-                ."振り返りをしましょう。"
+                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は".$this->deadlineDays."日以上編集されていない、または自分自身で振り返りのNotionコメントが確認されませんでした。 \n"
+                ."振り返りを実施してください。 \n"
+                .$notionKptPage->notionUrl
                 ;
             }
         }
