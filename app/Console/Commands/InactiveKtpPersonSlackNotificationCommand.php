@@ -15,6 +15,7 @@ use Notion\Notion;
 use Notion\Users\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class InactiveKtpPersonSlackNotificationCommand extends Command
 {
@@ -57,7 +58,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Send slack notifications to users who are unable to operate KPT';
 
     /**
      * Execute the console command.
@@ -94,6 +95,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             }
 
         } catch(\Exception $e) {
+            Log::error($this->error($e->getMessage()));
             $this->error($e->getMessage());
         }
         $this->info('end:InactiveKtpPersonSlackNotificationCommand');
@@ -157,7 +159,9 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $this->slackKptNotificationWebhook,
             [
                 'json' => [
-                    "text" => $text
+                    "text" => $text,
+                    "username" => "KPT Bot",
+                    "icon_emoji" => ":robot_face:"
                 ]
             ]
         );
@@ -256,8 +260,9 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function setTextIfEmpty(array $texts, Collection $notionKptPages, string $notionUserName):array
     {
         if($notionKptPages->isEmpty()) {
-            $texts[] = $notionUserName."が作成したKPTページが存在していないようです。\n"
-             . "problemやtryの登録をしましょう。"
+            $texts[] = "*■{$notionUserName}* \n"
+                . "作成したKPTページが存在していないようです。\n"
+                . "problemやtryの登録をしましょう。"
             ;
         }
         return $texts;
@@ -310,9 +315,10 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $isNothingComment = $this->isNothingComment($notionKptPage->comments, $notionKptPage->personId, $deadlineDay);
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
-                $texts[] = $notionUserName." の「".$notionKptPage->kpt."」は".$this->deadlineDays."日以上編集されていない、または自分自身で振り返りのNotionコメントが確認されませんでした。 \n"
-                ."振り返りを実施してください。 \n"
-                .$notionKptPage->notionUrl
+                $texts[] = "*■{$notionUserName}* \n"
+                ."```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` \n"
+                ."{$this->deadlineDays}日以上編集されていない、または自分自身で振り返りのNotionコメントが確認されませんでした。 \n"
+                ."振り返りを実施してください。"
                 ;
             }
         }
