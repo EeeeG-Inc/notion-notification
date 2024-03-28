@@ -30,8 +30,9 @@ jobs:
         with:
           php-version: "8.3.2"
           extensions: pdo_mysql, soap
+      - name: Test
+        run: ls -la
       - name: Composer Install
-        if: steps.composer_cache.outputs.cache-hit != 'true'
         run: |
           composer install -n --prefer-dist
       - name: Modify database settings
