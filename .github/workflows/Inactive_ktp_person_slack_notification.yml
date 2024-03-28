@@ -7,7 +7,7 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  phpunit:
+  run_batch:
     runs-on: ubuntu-latest
     env:
       APP_DEBUG: true
@@ -30,9 +30,6 @@ jobs:
         with:
           php-version: "8.3.2"
           extensions: pdo_mysql, soap
-      - run: composer config github-oauth.github.com ${COMPOSER_AUTH_TOKEN}
-        env:
-          COMPOSER_AUTH_TOKEN: ${{ secrets.COMPOSER_AUTH_TOKEN }}
       - name: Composer Install
         if: steps.composer_cache.outputs.cache-hit != 'true'
         run: |
