@@ -1,0 +1,55 @@
+name: inactive_ktp_person_slack_notification
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 日-木 0:00 (UTC) -> 月-金 9:30 (JST)
+    - cron: "0 0 * * *"
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    env:
+      APP_DEBUG: true
+      APP_ENV: production
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ROOT_HOST: "%"
+        options: --health-cmd "mysqladmin ping" --health-interval 20s --health-timeout 10s --health-retries 10
+    steps:
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3.2"
+          extensions: pdo_mysql, soap
+      - run: composer config github-oauth.github.com ${COMPOSER_AUTH_TOKEN}
+        env:
+          COMPOSER_AUTH_TOKEN: ${{ secrets.COMPOSER_AUTH_TOKEN }}
+      - name: Composer Install
+        if: steps.composer_cache.outputs.cache-hit != 'true'
+        run: |
+          composer install -n --prefer-dist
+      - name: Modify database settings
+        run: |
+          mysql -h 127.0.0.1 --port 3306 -u root -proot -e "ALTER DATABASE testing CHARACTER SET utf8mb4 COLLATE 'utf8mb4_unicode_ci'"
+      - run: cp .env.ci .env
+      - run: php artisan config:clear
+      - run: php artisan migrate
+      - name: Run InactiveKtpPersonSlackNotificationCommand
+        env:
+          SLACK_KPT_NOTIFICATION_WEBHOOK: ${{ secrets.SLACK_KPT_NOTIFICATION_WEBHOOK }}
+          SLACK_TEST_WEBHOOK: ${{ secrets.SLACK_TEST_WEBHOOK }}
+          NOTION_KPT_DATABASE_ID: ${{ secrets.NOTION_KPT_DATABASE_ID }}
+          NOTION_INSIDER_INTEGRATION_SECRET: ${{ secrets.NOTION_INSIDER_INTEGRATION_SECRET }}
+          SLACK_USER_IDS: ${{ secrets.SLACK_USER_IDS }}
+          NOTION_USERS: ${{ secrets.NOTION_USERS }}
+          ENABLE_SLACK_MENTION: ${{ secrets.ENABLE_SLACK_MENTION }}
+        run: php artisan slack:inactive-kpt-person-notification-command

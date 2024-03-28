@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7fcc8a241bd89172262d470e0ee21362",
+    "content-hash": "7ecc84ba134a4aea5f23332228f24c4a",
     "packages": [
         {
             "name": "barryvdh/laravel-debugbar",
@@ -2050,6 +2050,66 @@
             "time": "2023-10-17T14:13:20+00:00"
         },
         {
+            "name": "mariosimao/notion-sdk-php",
+            "version": "v1.13.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mariosimao/notion-sdk-php.git",
+                "reference": "0978998f3ebbf7e323a297001cf6f1a6e4671a95"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mariosimao/notion-sdk-php/zipball/0978998f3ebbf7e323a297001cf6f1a6e4671a95",
+                "reference": "0978998f3ebbf7e323a297001cf6f1a6e4671a95",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "php-http/discovery": "^1.15",
+                "psr/http-client-implementation": "^1.0",
+                "psr/http-factory-implementation": "^1.0",
+                "psr/http-message-implementation": "^1.0"
+            },
+            "require-dev": {
+                "brianium/paratest": "^7.1",
+                "guzzlehttp/guzzle": "^7.5",
+                "infection/infection": "^0.26.19 || ^0.27.0",
+                "phpunit/phpunit": "^10.0",
+                "psalm/plugin-phpunit": "^0.18.4",
+                "squizlabs/php_codesniffer": "^3.7",
+                "vimeo/psalm": "^5.7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Notion\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mario Simão",
+                    "email": "mariogsimao@gmail.com"
+                }
+            ],
+            "description": "A complete Notion SDK for PHP developers.",
+            "homepage": "https://mario.engineering/notion-sdk-php",
+            "support": {
+                "issues": "https://github.com/mariosimao/notion-sdk-php/issues",
+                "source": "https://github.com/mariosimao/notion-sdk-php/tree/v1.13.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/mariosimao",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-01-10T18:42:03+00:00"
+        },
+        {
             "name": "maximebf/debugbar",
             "version": "v1.19.1",
             "source": {
@@ -2614,6 +2674,84 @@
                 }
             ],
             "time": "2023-02-08T01:06:31+00:00"
+        },
+        {
+            "name": "php-http/discovery",
+            "version": "1.19.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-http/discovery.git",
+                "reference": "61e1a1eb69c92741f5896d9e05fb8e9d7e8bb0cb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-http/discovery/zipball/61e1a1eb69c92741f5896d9e05fb8e9d7e8bb0cb",
+                "reference": "61e1a1eb69c92741f5896d9e05fb8e9d7e8bb0cb",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0|^2.0",
+                "php": "^7.1 || ^8.0"
+            },
+            "conflict": {
+                "nyholm/psr7": "<1.0",
+                "zendframework/zend-diactoros": "*"
+            },
+            "provide": {
+                "php-http/async-client-implementation": "*",
+                "php-http/client-implementation": "*",
+                "psr/http-client-implementation": "*",
+                "psr/http-factory-implementation": "*",
+                "psr/http-message-implementation": "*"
+            },
+            "require-dev": {
+                "composer/composer": "^1.0.2|^2.0",
+                "graham-campbell/phpspec-skip-example-extension": "^5.0",
+                "php-http/httplug": "^1.0 || ^2.0",
+                "php-http/message-factory": "^1.0",
+                "phpspec/phpspec": "^5.1 || ^6.1 || ^7.3",
+                "symfony/phpunit-bridge": "^6.2"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Http\\Discovery\\Composer\\Plugin",
+                "plugin-optional": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Http\\Discovery\\": "src/"
+                },
+                "exclude-from-classmap": [
+                    "src/Composer/Plugin.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Márk Sági-Kazár",
+                    "email": "mark.sagikazar@gmail.com"
+                }
+            ],
+            "description": "Finds and installs PSR-7, PSR-17, PSR-18 and HTTPlug implementations",
+            "homepage": "http://php-http.org",
+            "keywords": [
+                "adapter",
+                "client",
+                "discovery",
+                "factory",
+                "http",
+                "message",
+                "psr17",
+                "psr7"
+            ],
+            "support": {
+                "issues": "https://github.com/php-http/discovery/issues",
+                "source": "https://github.com/php-http/discovery/tree/1.19.2"
+            },
+            "time": "2023-11-30T16:49:05+00:00"
         },
         {
             "name": "phpoption/phpoption",
