@@ -28,8 +28,7 @@ jobs:
     steps:
       - uses: shivammathur/setup-php@v2
         with:
-          # PHP バージョンあとで確認
-          php-version: "8.2.15"
+          php-version: "8.3.2"
           extensions: pdo_mysql, soap
       - run: composer config github-oauth.github.com ${COMPOSER_AUTH_TOKEN}
         env:
@@ -50,7 +49,7 @@ jobs:
           SLACK_TEST_WEBHOOK: ${{ secrets.SLACK_TEST_WEBHOOK }}
           NOTION_KPT_DATABASE_ID: ${{ secrets.NOTION_KPT_DATABASE_ID }}
           NOTION_INSIDER_INTEGRATION_SECRET: ${{ secrets.NOTION_INSIDER_INTEGRATION_SECRET }}
-          # 田中さんがまだプッシュしてないので環境変数わからない
-          # SLACK_USERS: ${{ secrets.SLACK_USERS }}
-          # NOTION_USERS: ${{ secrets.NOTION_USERS }}
+          SLACK_USER_IDS: ${{ secrets.SLACK_USER_IDS }}
+          NOTION_USERS: ${{ secrets.NOTION_USERS }}
+          ENABLE_SLACK_MENTION: ${{ secrets.ENABLE_SLACK_MENTION }}
         run: php artisan slack:inactive-kpt-person-notification-command
