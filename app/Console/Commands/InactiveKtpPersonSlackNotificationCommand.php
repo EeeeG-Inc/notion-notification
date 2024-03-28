@@ -26,6 +26,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private int $deadlineDays;
     private string $tz;
     private Client $guzzle;
+    private bool $enableSlackMention;
 
     public function __construct()
     {
@@ -37,6 +38,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $this->slackKptNotificationWebhook = config('slack.slack_test_webhook');
         }
 
+        $this->enableSlackMention = config('slack.enable_slack_mention');
         $this->databaseId = config('notion.notion_kpt_database_id');
         $this->notion = Notion::create(config('notion.notion_insider_integration_secret'));
         $this->ignoreNotionUsers = [
@@ -68,6 +70,8 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         try {
             $this->info('start:InactiveKtpPersonSlackNotificationCommand');
 
+            $slackUseIds = $this->getSlackUserIds();
+
             $this->info('getting users');
             $notionUsers = $this->getNotionUsers();
 
@@ -88,7 +92,12 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
                 $this->info('slack notification : user.name ' . $notionUser->name);
                 $texts = $this->getSlackTexts($notionKptPages, $notionUser->name);
 
-                foreach($texts as $text) {
+                foreach($texts as $index => $text) {
+                    $isFirstText = ($index === 0) ? true : false;
+                    if($isFirstText) {
+                        $text = $this->addUserName($notionUser->name, $text, $slackUseIds);
+
+                    }
                     $this->postSlack($text);
                 }
 
@@ -260,9 +269,8 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function setTextIfEmpty(array $texts, Collection $notionKptPages, string $notionUserName):array
     {
         if($notionKptPages->isEmpty()) {
-            $texts[] = "*■{$notionUserName}* \n"
-                . "作成したKPTページが存在していないようです。\n"
-                . "problemやtryの登録をしましょう。"
+            $texts[] = ":cry: 作成した KPT ページが存在していないようです。\n"
+                . "Problem や Try の登録をしましょう。"
             ;
         }
         return $texts;
@@ -315,13 +323,57 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $isNothingComment = $this->isNothingComment($notionKptPage->comments, $notionKptPage->personId, $deadlineDay);
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
-                $texts[] = "*■{$notionUserName}* \n"
-                ."```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` \n"
-                ."{$this->deadlineDays}日以上編集されていない、または自分自身で振り返りのNotionコメントが確認されませんでした。 \n"
+                $texts[] = "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` "
+                .":warning: {$this->deadlineDays} 日以上編集されていない、または自分自身で振り返りの Notion コメントが確認されませんでした。 \n"
                 ."振り返りを実施してください。"
                 ;
             }
         }
         return $texts;
+    }
+
+
+    /**
+     * Slackユーザーを取得する
+     *
+     * @return array
+     */
+    private function getSlackUserIds():array
+    {
+        $result = [];
+
+        if(!$this->enableSlackMention) {
+            return $result;
+        }
+
+        $slackUseIds = explode(",", config('slack.slack_user_ids'));
+        $notionUsers = explode(",", config('notion.notion_users'));
+
+        if(empty($slackUseIds) || empty($notionUsers)) {
+            return $result;
+        }
+
+        if(count($slackUseIds) !== count($notionUsers)) {
+            return $result;
+        }
+
+        foreach($notionUsers as $index => $notionUser) {
+            $result[$notionUser] = $slackUseIds[$index];
+        }
+
+        return $result;
+    }
+
+    private function addUserName(string $notionUserName, string $text, array $slackUseIds):string
+    {
+        if(!$this->enableSlackMention || empty($slackUseIds)) {
+            return "*■{$notionUserName}* \n" . $text;
+        }
+
+        if(array_key_exists($notionUserName, $slackUseIds)) {
+            $mention = $slackUseIds[$notionUserName];
+            return "{$mention} \n" . $text;
+        }
+        return "*■{$notionUserName}* \n" . $text;
     }
 }
