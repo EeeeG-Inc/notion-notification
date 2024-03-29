@@ -372,7 +372,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
         if(array_key_exists($notionUserName, $slackUseIds)) {
             $mention = $slackUseIds[$notionUserName];
-            return "{$mention} \n" . $text;
+            return "<@{$mention}> \n" . $text;
         }
         return "*■{$notionUserName}* \n" . $text;
     }
