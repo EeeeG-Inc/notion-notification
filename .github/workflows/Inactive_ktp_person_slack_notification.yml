@@ -47,7 +47,8 @@ jobs:
         run: |
           mysql -h 127.0.0.1 --port 3306 -u root -proot -e "ALTER DATABASE testing CHARACTER SET utf8mb4 COLLATE 'utf8mb4_unicode_ci'"
       - run: cp .env.ci .env
+      - run: cp .env.ci .env.testing
       - run: php artisan config:clear
-      - run: php artisan migrate
+      # - run: php artisan migrate
       - name: Run InactiveKtpPersonSlackNotificationCommand
         run: php artisan slack:inactive-kpt-person-notification-command
