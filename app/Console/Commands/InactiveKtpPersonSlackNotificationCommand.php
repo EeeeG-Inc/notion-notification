@@ -316,19 +316,25 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     {
         $now = CarbonImmutable::now($this->tz);
         $deadlineDay = $now->subDays($this->deadlineDays);
+        $isTextExist = false;
+        $text = '';
 
         foreach($notionKptPages as $notionKptPage) {
-
             $lastEditedTime = new CarbonImmutable($notionKptPage->lastEditedTime, $this->tz);
             $isNothingComment = $this->isNothingComment($notionKptPage->comments, $notionKptPage->personId, $deadlineDay);
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
-                $texts[] = "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` "
-                . ":warning: {$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです \n"
-                . ":arrow_right: *振り返りを実施しましょう！*"
-                ;
+                $isTextExist = true;
+                $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>```";
             }
         }
+
+        if ($isTextExist) {
+            $texts[] = $text .
+            . ":warning: {$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです \n"
+            . ":arrow_right: *振り返りを実施しましょう！*";
+        }
+
         return $texts;
     }
 
