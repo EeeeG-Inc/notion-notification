@@ -31,6 +31,15 @@ jobs:
         with:
           php-version: "8.3.2"
           extensions: pdo_mysql, soap
+      - name: Add GitHub env
+        run: |
+              echo "SLACK_KPT_NOTIFICATION_WEBHOOK=${{ secrets.SLACK_KPT_NOTIFICATION_WEBHOOK }}" >> $GITHUB_ENV
+              echo "SLACK_TEST_WEBHOOK=${{ secrets.SLACK_TEST_WEBHOOK }}" >> $GITHUB_ENV
+              echo "NOTION_KPT_DATABASE_ID=${{ secrets.NOTION_KPT_DATABASE_ID }}" >> $GITHUB_ENV
+              echo "NOTION_INSIDER_INTEGRATION_SECRET=${{ secrets.NOTION_INSIDER_INTEGRATION_SECRET }}" >> $GITHUB_ENV
+              echo "SLACK_USER_IDS=${{ secrets.SLACK_USER_IDS }}" >> $GITHUB_ENV
+              echo "NOTION_USERS=${{ secrets.NOTION_USERS }}" >> $GITHUB_ENV
+              echo "ENABLE_SLACK_MENTION=${{ secrets.ENABLE_SLACK_MENTION }}" >> $GITHUB_ENV
       - name: Composer Install
         run: |
           composer install -n --prefer-dist
@@ -41,12 +50,4 @@ jobs:
       - run: php artisan config:clear
       - run: php artisan migrate
       - name: Run InactiveKtpPersonSlackNotificationCommand
-        env:
-          SLACK_KPT_NOTIFICATION_WEBHOOK: ${{ secrets.SLACK_KPT_NOTIFICATION_WEBHOOK }}
-          SLACK_TEST_WEBHOOK: ${{ secrets.SLACK_TEST_WEBHOOK }}
-          NOTION_KPT_DATABASE_ID: ${{ secrets.NOTION_KPT_DATABASE_ID }}
-          NOTION_INSIDER_INTEGRATION_SECRET: ${{ secrets.NOTION_INSIDER_INTEGRATION_SECRET }}
-          SLACK_USER_IDS: ${{ secrets.SLACK_USER_IDS }}
-          NOTION_USERS: ${{ secrets.NOTION_USERS }}
-          ENABLE_SLACK_MENTION: ${{ secrets.ENABLE_SLACK_MENTION }}
         run: php artisan slack:inactive-kpt-person-notification-command
