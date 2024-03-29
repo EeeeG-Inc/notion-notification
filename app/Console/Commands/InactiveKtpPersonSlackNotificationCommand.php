@@ -325,7 +325,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
                 $isTextExist = true;
-                $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>```";
+                $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` \n";
             }
         }
 
