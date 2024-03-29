@@ -330,7 +330,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         }
 
         if ($isTextExist) {
-            $texts[] = $text .
+            $texts[] = $text
             . ":warning: {$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです \n"
             . ":arrow_right: *振り返りを実施しましょう！*";
         }
