@@ -270,7 +270,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     {
         if($notionKptPages->isEmpty()) {
             $texts[] = ":cry: 現在アクティブな KPT ページが存在しないようです\n"
-                . ":arrow_right: Problem や Try の登録をしましょう！"
+                . ":arrow_right: *Problem や Try の登録をしましょう！*"
             ;
         }
         return $texts;
@@ -325,7 +325,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
                 $texts[] = "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>``` "
                 . ":warning: {$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです \n"
-                . ":arrow_right: 振り返りを実施しましょう！"
+                . ":arrow_right: *振り返りを実施しましょう！*"
                 ;
             }
         }
