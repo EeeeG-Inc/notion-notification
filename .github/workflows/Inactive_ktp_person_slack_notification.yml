@@ -49,6 +49,6 @@ jobs:
       - run: cp .env.ci .env
       - run: cp .env.ci .env.testing
       - run: php artisan config:clear
-      # - run: php artisan migrate
+      - run: php artisan migrate
       - name: Run InactiveKtpPersonSlackNotificationCommand
         run: php artisan slack:inactive-kpt-person-notification-command
