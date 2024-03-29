@@ -317,6 +317,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
         $now = CarbonImmutable::now($this->tz);
         $deadlineDay = $now->subDays($this->deadlineDays);
         $isTextExist = false;
+        $isFirstText = true;
         $text = '';
 
         foreach($notionKptPages as $notionKptPage) {
@@ -325,7 +326,14 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
 
             if($lastEditedTime->lt($deadlineDay) && $isNothingComment) {
                 $isTextExist = true;
-                $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
+
+                if ($isFirstText) {
+                    $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
+                } else {
+                    $text .= "<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
+                }
+
+                $isFirstText = false;
             }
         }
 
