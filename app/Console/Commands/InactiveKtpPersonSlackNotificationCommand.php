@@ -328,9 +328,9 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
                 $isTextExist = true;
 
                 if ($isFirstText) {
-                    $text .= "```<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
+                    $text .= "```・<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
                 } else {
-                    $text .= "<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
+                    $text .= "・<$notionKptPage->notionUrl|{$notionKptPage->kpt}>\n";
                 }
 
                 $isFirstText = false;
@@ -341,7 +341,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $text = rtrim($text, "\n");
             $text .= "```";
             $texts[] = $text
-            . ":warning: `{$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです`\n"
+            . ":warning: `上記ページは {$this->deadlineDays} 日以上編集されていない、または、自分の振り返りコメントを残していないようです`\n"
             . ":arrow_right: *振り返りを実施しましょう！*";
         }
 
