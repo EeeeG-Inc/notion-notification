@@ -269,7 +269,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
     private function setTextIfEmpty(array $texts, Collection $notionKptPages, string $notionUserName):array
     {
         if($notionKptPages->isEmpty()) {
-            $texts[] = ":cry: 現在アクティブな KPT ページが存在しないようです\n"
+            $texts[] = ":cry: `現在アクティブな KPT ページが存在しないようです`\n"
                 . ":arrow_right: *Problem や Try の登録をしましょう！*"
             ;
         }
@@ -341,7 +341,7 @@ class InactiveKtpPersonSlackNotificationCommand extends Command
             $text = rtrim($text, "\n");
             $text .= "```";
             $texts[] = $text
-            . ":warning: {$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです \n"
+            . ":warning: `{$this->deadlineDays} 日以上 KPT ページが編集されていない、もしくは、自分の振り返りコメントがないようです`\n"
             . ":arrow_right: *振り返りを実施しましょう！*";
         }
 
